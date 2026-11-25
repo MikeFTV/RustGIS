@@ -6045,21 +6045,30 @@ mod tests {
     /// A Shapefile's `.dbf` header holds the day it was written, which `dbase` takes from `time`'s
     /// clock: std's unless `time`'s `wasm-bindgen` feature is on, and std's clock panics on
     /// wasm32-unknown-unknown, so every Shapefile export stopped the web app with no message
-    /// (opengeos/GeoLibre#3648). The browser build can't run here, so this checks both halves:
-    /// that writing a `.dbf` does read the clock, and that this crate turns the feature on for
-    /// wasm32.
+    /// (opengeos/GeoLibre#3648). The browser build can't run here, so this checks both halves on
+    /// the host: that writing a `.dbf` stamps today's date (it reads the clock), and that this
+    /// crate turns the feature on for wasm32.
     #[test]
-    fn a_shapefile_written_in_the_browser_reads_the_clock_through_javascript() {
+    fn a_shapefile_dbf_is_stamped_with_the_day_it_was_written() {
+        let today = || {
+            let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+            let (y, m, d) = crate::date::civil_from_days(i64::try_from(secs / 86_400).unwrap());
+            (y - 1900, m, d)
+        };
         let mut ds = Dataset::new("pts", GeometryType::Point, vec![Field::new("n", FieldType::Integer)]);
         ds.push(Some(Geometry::Point(Coord::new(1.0, 2.0))), vec![Value::Int(1)]);
+        let before = today();
         let (parts, _) = shapefile_parts_in(&ds, Crs::LonLat).unwrap();
+        let after = today();
         let dbf = &parts.iter().find(|(e, _)| *e == "dbf").unwrap().1;
-        // Bytes 1 to 3: the year since 1900, the month and the day it was written.
-        let year = 1900 + u32::from(dbf[1]);
-        assert!((2024..2156).contains(&year), "the .dbf header holds the day it was written: {year}");
-        assert!((1..=12).contains(&dbf[2]) && (1..=31).contains(&dbf[3]), "{:?}", &dbf[1..4]);
+        // Bytes 1 to 3: the year since 1900, the month and the day it was written (UTC), either
+        // side of a midnight passed during the write.
+        let stamped = (i64::from(dbf[1]), i64::from(dbf[2]), i64::from(dbf[3]));
+        assert!(stamped == before || stamped == after, "{stamped:?}, written between {before:?} and {after:?}");
 
-        let manifest = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"));
+        // A plain text match, so the test needs no TOML parser: it is loud, not silent, if the
+        // section is ever written another way (a `[target.….dependencies.time]` table).
+        let manifest = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml")).replace("\r\n", "\n");
         let wasm = manifest
             .split("\n[")
             .find(|section| section.starts_with("target.'cfg(target_arch = \"wasm32\")'.dependencies]"))
