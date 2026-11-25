@@ -6042,6 +6042,34 @@ mod tests {
     use super::*;
     use std::io::Write;
 
+    /// A Shapefile's `.dbf` header holds the day it was written, which `dbase` takes from `time`'s
+    /// clock: std's unless `time`'s `wasm-bindgen` feature is on, and std's clock panics on
+    /// wasm32-unknown-unknown, so every Shapefile export stopped the web app with no message
+    /// (opengeos/GeoLibre#3648). The browser build can't run here, so this checks both halves:
+    /// that writing a `.dbf` does read the clock, and that this crate turns the feature on for
+    /// wasm32.
+    #[test]
+    fn a_shapefile_written_in_the_browser_reads_the_clock_through_javascript() {
+        let mut ds = Dataset::new("pts", GeometryType::Point, vec![Field::new("n", FieldType::Integer)]);
+        ds.push(Some(Geometry::Point(Coord::new(1.0, 2.0))), vec![Value::Int(1)]);
+        let (parts, _) = shapefile_parts_in(&ds, Crs::LonLat).unwrap();
+        let dbf = &parts.iter().find(|(e, _)| *e == "dbf").unwrap().1;
+        // Bytes 1 to 3: the year since 1900, the month and the day it was written.
+        let year = 1900 + u32::from(dbf[1]);
+        assert!((2024..2156).contains(&year), "the .dbf header holds the day it was written: {year}");
+        assert!((1..=12).contains(&dbf[2]) && (1..=31).contains(&dbf[3]), "{:?}", &dbf[1..4]);
+
+        let manifest = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"));
+        let wasm = manifest
+            .split("\n[")
+            .find(|section| section.starts_with("target.'cfg(target_arch = \"wasm32\")'.dependencies]"))
+            .expect("crates/data/Cargo.toml has a [target.'cfg(target_arch = \"wasm32\")'.dependencies] section");
+        assert!(
+            wasm.lines().any(|l| l.starts_with("time ") && l.contains("\"wasm-bindgen\"")),
+            "time's wasm-bindgen feature is on for wasm32, or a Shapefile export panics in the browser:\n{wasm}"
+        );
+    }
+
     /// A write to a name nothing holds reserves it first: a second write to it is refused before
     /// anything is written, and dropping the write removes the reservation and the folder made for
     /// it; once installed, both stay (#2865).
