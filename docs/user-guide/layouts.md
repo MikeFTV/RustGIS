@@ -280,6 +280,20 @@ Layouts open as tabs next to the maps; while one is open, its groups lead the Pu
   `"grid": {…}` (`false` removes the grid). On a map on the globe the lines are drawn on the
   globe, and stop at its horizon. A frame that shows the whole globe has nothing beyond its rim,
   and so no labels along its edges.
+- **Section lines**: a frame can draw the traces of cross-sections over its map, up to 26 of them:
+  `layout.addElement={"kind":"section","frame":1,"name":"A","direction":"horizontal","at":[-44.66,-22.38]}`
+  draws one across the whole frame, straight on the page (`"direction"` is `"horizontal"` or
+  `"vertical"`), through a place, with its name in a box at both ends (A and A'). The name defaults
+  to the first free letter and the place to the frame's centre; `color`, `width` and `dash` set its
+  look. `layout.update={"element":1,"section":{"name":"A","at":[-44.7,-22.4],"color":"#1F5C84"}}`
+  changes one by its name, the keys not given keeping theirs (`"newName"` renames it, and
+  `"remove": true` removes it). The place is what is kept, so the line follows it when the frame is
+  moved, turned or rescaled, and on each page of a map series; the line runs to the frame's
+  edge, or to the outline of a round or polygon frame. A line whose place is outside the frame, or
+  that the frame's map can't show, isn't drawn: these commands, the layout view and exports say which
+  and why (for a map series' PDF, on how many of its pages). On a tilted frame or one on the globe,
+  the line runs through the place as the grid puts it there, only as far as there is ground along
+  it; it is straight on the page there, and not a straight section of the ground.
 - **Measured grids**: a grid's **Type** is a **Graticule** (latitudes and longitudes, as above)
   or a **Measured grid**, as ArcGIS Pro has them: eastings and northings in a projected coordinate
   system, for maps read with UTM or national grid coordinates (a hiking map at 1:25,000 with a
@@ -670,16 +684,17 @@ Layouts open as tabs next to the maps; while one is open, its groups lead the Pu
   `layout.update={"element":4,"background":{"fill":"#FFFFFFCC","radius":1,"padding":1.5}}`; the keys
   not given keep theirs, and `"background":null` removes it. `layout.addElement` takes it too. A
   map frame draws its own map and paper, so a background on one is refused.
-- **Ink**: a legend, a colorbar, a table and a chart draw their text and lines in dark grey; turn
-  on **Ink** in the Format pane and pick its colour to read them on a dark page or over imagery.
-  It starts white over a dark background and dark grey otherwise, and turned off it is the dark
-  grey again. A legend's title, layer names and
-  class labels, a colorbar's title, outline, ticks and labels, a table's text and a chart's title
-  and labels take it; a chart's bars and a colorbar's colours keep theirs. A table with an ink
-  draws no white cells of its own, only its header and every other row in a light tint of the ink,
-  so it reads on whatever is behind it: give it a **Background** for a box. From a command:
-  `layout.update={"element":5,"color":"#FFFFFF"}`, and `"color":null` for the default;
-  `layout.addElement` takes it too.
+- **Ink**: a legend, a colorbar, a table and a chart draw their text and lines in dark grey; turn on
+  **Ink** in the Format pane and pick its colour to read them on a dark page or over imagery. It
+  starts white when the colour shown at the element's centre is dark, and dark grey otherwise: that
+  colour is the page's, with the backgrounds, rectangles and ellipses under the element and its own
+  background over it (maps and pictures aren't read). Turned off it is the dark grey again. A
+  legend's title, layer names and class labels, a colorbar's title, outline, ticks and labels, a
+  table's text and a chart's title and labels take it; a chart's bars and a colorbar's colours keep
+  theirs. A table with an ink draws no white cells of its own, only its header and every other row
+  in a light tint of the ink, so it reads on whatever is behind it: give it a **Background** for a
+  box. From a command: `layout.update={"element":5,"color":"#FFFFFF"}`, and `"color":null` for the
+  default; `layout.addElement` takes it too.
 - **Chart frame**: a bar chart of a layer of the frame's map. Its properties pick the **Layer**
   and the numeric **Field**, and by default draw a bar per feature, the largest first, each
   labelled by the **Label** field. **Group by** a field draws a bar per value of that field
@@ -798,7 +813,7 @@ Layouts open as tabs next to the maps; while one is open, its groups lead the Pu
   Its page has layers (PDF optional content groups), which a vector editor that reads them opens
   as layers (VectorCraft, where it was checked), and PDF readers list in their layers panel:
   one for each element, named after it, and inside a map frame's, one for each map layer and one
-  for each layer's labels (`Labels: <layer>`), and one for the frame's grid. A map series' pages
+  for each layer's labels (`Labels: <layer>`), one for the frame's grid and one for its section lines. A map series' pages
   share them. `"pdf": {"layers": false}` on `layout.export` leaves them out. The map view's PDF
   (Publish › Print Map) has its map layers and labels as layers too.
   A PDF is also a GeoPDF: each map frame is georeferenced (an ISO 32000 geospatial viewport, the
